@@ -1,0 +1,784 @@
+<kimi-widget name="CineFlow" height="850" class="rounded-xl overflow-hidden">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Playfair Display', 'serif'],
+          },
+          colors: {
+            cf: {
+              bg: '#0a0a0a',
+              surface: '#141414',
+              elevated: '#1a1a1a',
+              border: '#262626',
+              muted: '#a3a3a3',
+              accent: '#d4a853',
+              accentHover: '#c49a4b',
+              text: '#fafafa',
+              dim: '#737373'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #444; }
+    
+    .row-scroll::-webkit-scrollbar { display: none; }
+    .row-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    .glass-panel {
+      background: rgba(20, 20, 20, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    
+    .hero-gradient {
+      background: linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,0.6) 40%, transparent 100%),
+                  linear-gradient(to right, #0a0a0a 0%, transparent 50%);
+    }
+    
+    .card-hover {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-hover:hover {
+      transform: scale(1.05) translateY(-4px);
+      z-index: 10;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    
+    .shimmer {
+      background: linear-gradient(90deg, #1a1a1a 25%, #262626 50%, #1a1a1a 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .slide-in-right { animation: slideInRight 0.3s ease-out; }
+    @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    input:focus, select:focus { outline: none; }
+    
+    .source-badge {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+  </style>
+
+  <div id="app" class="w-full h-[850px] bg-cf-bg text-cf-text font-sans overflow-hidden relative">
+    <!-- Navigation -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-8">
+        <div class="flex items-center gap-2 cursor-pointer" onclick="app.goHome()">
+          <i class="fa-solid fa-film text-cf-accent text-2xl"></i>
+          <span class="font-serif text-2xl font-bold tracking-tight">CineFlow</span>
+        </div>
+        <div class="hidden md:flex items-center gap-6 text-sm font-medium text-cf-muted">
+          <button onclick="app.filterType('all')" class="hover:text-white transition-colors">Home</button>
+          <button onclick="app.filterType('movie')" class="hover:text-white transition-colors">Movies</button>
+          <button onclick="app.filterType('tv_series')" class="hover:text-white transition-colors">TV Shows</button>
+          <button onclick="app.showWatchlist()" class="hover:text-white transition-colors">My List</button>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <div class="relative hidden sm:block">
+          <input id="searchInput" type="text" placeholder="Titles, people, genres" 
+            class="bg-cf-elevated border border-cf-border rounded-full px-4 py-2 pl-10 text-sm w-64 focus:border-cf-accent transition-colors placeholder:text-cf-dim"
+            oninput="app.handleSearch(this.value)">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-cf-dim text-xs"></i>
+        </div>
+        <button onclick="app.toggleSettings()" class="w-9 h-9 rounded-full bg-cf-elevated border border-cf-border flex items-center justify-center hover:border-cf-accent transition-colors">
+          <i class="fa-solid fa-gear text-cf-muted text-sm"></i>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-cf-accent to-amber-700 flex items-center justify-center text-xs font-bold text-black cursor-pointer">
+          CF
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div id="mainContent" class="h-full overflow-y-auto overflow-x-hidden scroll-smooth">
+      
+      <!-- Hero Section -->
+      <section id="hero" class="relative h-[75vh] w-full">
+        <div id="heroBackdrop" class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700"></div>
+        <div class="hero-gradient absolute inset-0"></div>
+        <div class="absolute bottom-0 left-0 right-0 p-8 md:p-16 pb-20 max-w-4xl">
+          <div id="heroMeta" class="flex items-center gap-3 mb-4 text-sm text-cf-muted fade-in">
+            <span class="px-2 py-0.5 rounded bg-cf-accent/20 text-cf-accent font-semibold text-xs">Featured</span>
+            <span id="heroYear">2024</span>
+            <span>•</span>
+            <span id="heroGenre">Drama</span>
+            <span>•</span>
+            <span id="heroRating" class="text-amber-400"><i class="fa-solid fa-star mr-1"></i>9.2</span>
+          </div>
+          <h1 id="heroTitle" class="font-serif text-5xl md:text-7xl font-bold mb-4 leading-tight fade-in">Breaking Bad</h1>
+          <p id="heroPlot" class="text-cf-muted text-base md:text-lg max-w-2xl mb-8 line-clamp-3 fade-in">
+            A chemistry teacher facing a serious illness enters the dangerous drug trade, dramatically transforming from a mild-mannered family man into a feared drug lord.
+          </p>
+          <div class="flex items-center gap-4 fade-in">
+            <button onclick="app.playHero()" class="bg-cf-accent hover:bg-cf-accentHover text-black font-semibold px-8 py-3 rounded-lg flex items-center gap-2 transition-all hover:scale-105">
+              <i class="fa-solid fa-play"></i> Watch Now
+            </button>
+            <button onclick="app.toggleHeroWatchlist()" id="heroWatchlistBtn" class="bg-cf-elevated/80 hover:bg-cf-elevated border border-cf-border px-6 py-3 rounded-lg flex items-center gap-2 transition-all">
+              <i class="fa-solid fa-plus"></i> My List
+            </button>
+            <button onclick="app.showHeroDetails()" class="bg-cf-elevated/80 hover:bg-cf-elevated border border-cf-border px-6 py-3 rounded-lg flex items-center gap-2 transition-all">
+              <i class="fa-solid fa-circle-info"></i> More Info
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Content Rows -->
+      <div id="contentRows" class="relative z-10 -mt-16 space-y-8 pb-20 px-4 md:px-12">
+        <!-- Rows injected by JS -->
+      </div>
+
+      <!-- Search Results View -->
+      <div id="searchView" class="hidden pt-24 px-4 md:px-12 pb-20 min-h-screen">
+        <h2 class="font-serif text-3xl mb-6">Search Results</h2>
+        <div id="searchResults" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+      </div>
+
+      <!-- Watchlist View -->
+      <div id="watchlistView" class="hidden pt-24 px-4 md:px-12 pb-20 min-h-screen">
+        <h2 class="font-serif text-3xl mb-2">My Watchlist</h2>
+        <p class="text-cf-muted mb-8">Your saved movies and shows</p>
+        <div id="watchlistGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+        <div id="emptyWatchlist" class="hidden text-center py-20">
+          <i class="fa-regular fa-bookmark text-4xl text-cf-dim mb-4"></i>
+          <p class="text-cf-muted">Your watchlist is empty</p>
+          <button onclick="app.goHome()" class="mt-4 text-cf-accent hover:underline">Browse content</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="fixed inset-0 z-[60] hidden">
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="app.closeDetail()"></div>
+      <div class="absolute inset-0 md:inset-10 lg:inset-x-20 lg:inset-y-12 bg-cf-surface rounded-2xl overflow-hidden flex flex-col slide-in-right shadow-2xl border border-cf-border">
+        <button onclick="app.closeDetail()" class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors">
+          <i class="fa-solid fa-xmark text-white"></i>
+        </button>
+        
+        <div class="flex-1 overflow-y-auto">
+          <div class="relative h-[50vh] md:h-[55vh]">
+            <div id="detailBackdrop" class="absolute inset-0 bg-cover bg-center"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-cf-surface via-cf-surface/40 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 p-8 md:p-12">
+              <h2 id="detailTitle" class="font-serif text-4xl md:text-5xl font-bold mb-3">Title</h2>
+              <div id="detailMeta" class="flex items-center gap-3 text-sm text-cf-muted mb-4"></div>
+              <div class="flex items-center gap-3">
+                <button class="bg-cf-accent hover:bg-cf-accentHover text-black font-semibold px-6 py-2.5 rounded-lg flex items-center gap-2 transition-all">
+                  <i class="fa-solid fa-play"></i> Watch
+                </button>
+                <button id="detailWatchlistBtn" onclick="app.toggleDetailWatchlist()" class="bg-cf-elevated border border-cf-border px-6 py-2.5 rounded-lg flex items-center gap-2 hover:border-white transition-all">
+                  <i class="fa-solid fa-plus"></i> My List
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-8 md:p-12 grid md:grid-cols-3 gap-8">
+            <div class="md:col-span-2 space-y-6">
+              <div>
+                <h3 class="text-lg font-semibold mb-2">Overview</h3>
+                <p id="detailPlot" class="text-cf-muted leading-relaxed"></p>
+              </div>
+              <div id="detailSources" class="space-y-3">
+                <h3 class="text-lg font-semibold">Where to Watch</h3>
+                <div id="sourcesList" class="flex flex-wrap gap-2"></div>
+              </div>
+            </div>
+            <div class="space-y-4 text-sm">
+              <div>
+                <span class="text-cf-dim block mb-1">Genres</span>
+                <div id="detailGenres" class="text-cf-text"></div>
+              </div>
+              <div>
+                <span class="text-cf-dim block mb-1">Cast</span>
+                <div id="detailCast" class="text-cf-text"></div>
+              </div>
+              <div>
+                <span class="text-cf-dim block mb-1">Release Year</span>
+                <div id="detailYear" class="text-cf-text"></div>
+              </div>
+              <div>
+                <span class="text-cf-dim block mb-1">Rating</span>
+                <div id="detailRating" class="text-cf-text"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div id="settingsPanel" class="fixed inset-0 z-[60] hidden">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="app.toggleSettings()"></div>
+      <div class="absolute right-0 top-0 bottom-0 w-full max-w-md bg-cf-surface border-l border-cf-border slide-in-right overflow-y-auto">
+        <div class="p-8">
+          <div class="flex items-center justify-between mb-8">
+            <h2 class="font-serif text-2xl font-bold">Settings</h2>
+            <button onclick="app.toggleSettings()" class="w-8 h-8 rounded-full bg-cf-elevated flex items-center justify-center hover:bg-cf-border transition-colors">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          
+          <div class="space-y-8">
+            <div>
+              <h3 class="text-sm font-semibold text-cf-dim uppercase tracking-wider mb-4">Playback</h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-cf-elevated rounded-xl border border-cf-border">
+                  <div>
+                    <div class="font-medium">Autoplay Trailers</div>
+                    <div class="text-xs text-cf-dim mt-0.5">Auto-play previews on hover</div>
+                  </div>
+                  <button onclick="app.toggleSetting(this, 'autoplay')" id="setting-autoplay" class="w-12 h-6 rounded-full bg-cf-accent relative transition-colors">
+                    <div class="absolute right-1 top-1 w-4 h-4 rounded-full bg-white transition-all"></div>
+                  </button>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-cf-elevated rounded-xl border border-cf-border">
+                  <div>
+                    <div class="font-medium">HD by Default</div>
+                    <div class="text-xs text-cf-dim mt-0.5">Prefer high quality streams</div>
+                  </div>
+                  <button onclick="app.toggleSetting(this, 'hd')" id="setting-hd" class="w-12 h-6 rounded-full bg-cf-accent relative transition-colors">
+                    <div class="absolute right-1 top-1 w-4 h-4 rounded-full bg-white transition-all"></div>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 class="text-sm font-semibold text-cf-dim uppercase tracking-wider mb-4">Region & Language</h3>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-xs text-cf-dim mb-1.5 block">Region</label>
+                  <select id="regionSelect" onchange="app.changeRegion(this.value)" class="w-full bg-cf-elevated border border-cf-border rounded-lg px-4 py-2.5 text-sm">
+                    <option value="US">United States</option>
+                    <option value="GB">United Kingdom</option>
+                    <option value="CA">Canada</option>
+                    <option value="AU">Australia</option>
+                    <option value="DE">Germany</option>
+                    <option value="FR">France</option>
+                    <option value="JP">Japan</option>
+                    <option value="KR">South Korea</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-cf-dim mb-1.5 block">Language</label>
+                  <select class="w-full bg-cf-elevated border border-cf-border rounded-lg px-4 py-2.5 text-sm">
+                    <option>English</option>
+                    <option>Español</option>
+                    <option>Français</option>
+                    <option>Deutsch</option>
+                    <option>日本語</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 class="text-sm font-semibold text-cf-dim uppercase tracking-wider mb-4">Appearance</h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-cf-elevated rounded-xl border border-cf-border">
+                  <div>
+                    <div class="font-medium">Compact Mode</div>
+                    <div class="text-xs text-cf-dim mt-0.5">Smaller cards and tighter spacing</div>
+                  </div>
+                  <button onclick="app.toggleSetting(this, 'compact')" id="setting-compact" class="w-12 h-6 rounded-full bg-cf-border relative transition-colors">
+                    <div class="absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-all"></div>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 class="text-sm font-semibold text-cf-dim uppercase tracking-wider mb-4">Account</h3>
+              <div class="p-4 bg-cf-elevated rounded-xl border border-cf-border space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-cf-dim">API Quota Used</span>
+                  <span class="text-sm font-mono" id="quotaDisplay">-- / --</span>
+                </div>
+                <div class="w-full bg-cf-border rounded-full h-1.5">
+                  <div id="quotaBar" class="bg-cf-accent h-1.5 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+                <button onclick="app.checkQuota()" class="w-full py-2 text-xs text-cf-accent hover:text-cf-accentHover transition-colors text-center">
+                  Refresh Quota
+                </button>
+              </div>
+            </div>
+            
+            <div class="pt-4 border-t border-cf-border">
+              <button onclick="app.clearWatchlist()" class="w-full py-3 text-red-400 hover:text-red-300 text-sm transition-colors">
+                Clear Watchlist
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-cf-elevated border border-cf-border px-6 py-3 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-[70] flex items-center gap-3">
+      <i id="toastIcon" class="fa-solid fa-check-circle text-cf-accent"></i>
+      <span id="toastMessage" class="text-sm font-medium">Action completed</span>
+    </div>
+  </div>
+
+  <script>
+    // Initial embedded data from Watchmode API
+    const INITIAL_DATA = {
+      featured: {
+        id: 3173903,
+        title: "Breaking Bad",
+        year: 2008,
+        type: "tv_series",
+        rating: 9.3,
+        genres: ["Drama", "Crime", "Thriller"],
+        plot: "A chemistry teacher facing a serious illness enters the dangerous drug trade, dramatically transforming from a mild-mannered family man into a feared drug lord.",
+        poster: "https://cdn.watchmode.com/posters/03173903_poster_w185.jpg",
+        backdrop: "https://cdn.watchmode.com/backdrops/03173903_bd_w780.jpg"
+      },
+      trending: [
+        { id: 3112487, title: "Stranger Things", year: 2016, type: "tv_series", rating: 8.4, genres: ["Sci-Fi", "Horror", "Drama"], poster: "https://cdn.watchmode.com/posters/03112487_poster_w185.jpg", backdrop: "https://cdn.watchmode.com/backdrops/03112487_bd_w780.jpg" },
+        { id: 3153842, title: "The Witcher", year: 2019, type: "tv_series", rating: 7.6, genres: ["Fantasy", "Action"], poster: "https://cdn.watchmode.com/posters/03153842_poster_w185.jpg", backdrop: "https://cdn.watchmode.com/backdrops/03153842_bd_w780.jpg" },
+        { id: 3153801, title: "The Mandalorian", year: 2019, type: "tv_series", rating: 8.4, genres: ["Sci-Fi", "Adventure"], poster: "https://cdn.watchmode.com/posters/03153801_poster_w185.jpg", backdrop: "https://cdn.watchmode.com/backdrops/03153801_bd_w780.jpg" },
+        { id: 345534, title: "Game of Thrones", year: 2011, type: "tv_series", rating: 9.7, genres: ["Fantasy", "Drama"], poster: "https://cdn.watchmode.com/posters/0345534_poster_w185.jpg", backdrop: "https://cdn.watchmode.com/backdrops/0345534_bd_w780.jpg" },
+        { id: 1182444, title: "Inception", year: 2010, type: "movie", rating: 8.8, genres: ["Sci-Fi", "Thriller"], poster: "https://cdn.watchmode.com/posters/01182444_poster_w185.jpg", backdrop: "https://cdn.watchmode.com/backdrops/01182444_bd_w780.jpg" },
+        { id: 1386160, title: "The Dark Knight", year: 2008, type: "movie", rating: 9.0, genres: ["Action", "Crime"], poster: "https://cdn.watchmode.com/posters/01386160_poster_w185.jpg", backdrop: "https://cdn.watchmode.com/backdrops/01386160_bd_w780.jpg" }
+      ],
+      popularMovies: [
+        { id: 1184713, title: "Interstellar", year: 2014, type: "movie", rating: 8.7, genres: ["Sci-Fi", "Drama"], poster: "https://cdn.watchmode.com/posters/01184713_poster_w185.jpg" },
+        { id: 1496273, title: "Dune", year: 2021, type: "movie", rating: 8.0, genres: ["Sci-Fi", "Adventure"], poster: "https://cdn.watchmode.com/posters/01496273_poster_w185.jpg" },
+        { id: 1643798, title: "Oppenheimer", year: 2023, type: "movie", rating: 8.6, genres: ["Drama", "History"], poster: "https://cdn.watchmode.com/posters/01643798_poster_w185.jpg" },
+        { id: 1589918, title: "Spider-Man: No Way Home", year: 2021, type: "movie", rating: 8.2, genres: ["Action", "Adventure"], poster: "https://cdn.watchmode.com/posters/01589918_poster_w185.jpg" },
+        { id: 1869118, title: "The Odyssey", year: 2026, type: "movie", rating: null, genres: ["Adventure"], poster: "https://cdn.watchmode.com/posters/01869118_poster_w185.jpg" },
+        { id: 1823785, title: "Toy Story 5", year: 2026, type: "movie", rating: null, genres: ["Animation", "Family"], poster: "https://cdn.watchmode.com/posters/01823785_poster_w185.jpg" }
+      ],
+      action: [
+        { id: 1861369, title: "Supergirl", year: 2026, type: "movie", rating: null, genres: ["Action"], poster: "https://cdn.watchmode.com/posters/01861369_poster_w185.jpg" },
+        { id: 1684276, title: "Avatar Aang", year: 2026, type: "movie", rating: null, genres: ["Fantasy", "Action"], poster: "https://cdn.watchmode.com/posters/01684276_poster_w185.jpg" },
+        { id: 1773876, title: "Spider-Man: Brand New Day", year: 2026, type: "movie", rating: null, genres: ["Action", "Sci-Fi"], poster: "https://cdn.watchmode.com/posters/01773876_poster_w185.jpg" },
+        { id: 1248513, title: "Masters of the Universe", year: 2026, type: "movie", rating: null, genres: ["Action", "Fantasy"], poster: "https://cdn.watchmode.com/posters/01248513_poster_w185.jpg" }
+      ],
+      drama: [
+        { id: 1855581, title: "Obsession", year: 2025, type: "movie", rating: null, genres: ["Drama", "Thriller"], poster: "https://cdn.watchmode.com/posters/01855581_poster_w185.jpg" },
+        { id: 1908308, title: "Backrooms", year: 2026, type: "movie", rating: null, genres: ["Horror", "Mystery"], poster: "https://cdn.watchmode.com/posters/01908308_poster_w185.jpg" },
+        { id: 1994067, title: "The Devil's Mouth", year: 2026, type: "movie", rating: null, genres: ["Horror"], poster: "https://cdn.watchmode.com/posters/01994067_poster_w185.jpg" }
+      ]
+    };
+
+    const GENRES = [
+      { id: 1, name: "Action" }, { id: 7, name: "Drama" }, { id: 11, name: "Horror" },
+      { id: 15, name: "Sci-Fi" }, { id: 4, name: "Comedy" }, { id: 5, name: "Crime" },
+      { id: 14, name: "Romance" }, { id: 9, name: "Fantasy" }, { id: 2, name: "Adventure" }
+    ];
+
+    const API_KEY = "IJhDpjewggvto7NySmUCiyX8ieoXlobyuXFlgjVr";
+    const BASE_URL = "https://api.watchmode.com/v1";
+
+    class CineFlow {
+      constructor() {
+        this.watchlist = JSON.parse(localStorage.getItem('cineflow_watchlist') || '[]');
+        this.settings = JSON.parse(localStorage.getItem('cineflow_settings') || '{"autoplay":true,"hd":true,"compact":false,"region":"US"}');
+        this.currentHero = INITIAL_DATA.featured;
+        this.searchTimeout = null;
+        this.init();
+      }
+
+      init() {
+        this.renderHero();
+        this.renderRows();
+        this.loadSettings();
+        this.checkQuota();
+        
+        // Navbar scroll effect
+        document.getElementById('mainContent').addEventListener('scroll', (e) => {
+          const nav = document.getElementById('navbar');
+          if (e.target.scrollTop > 50) {
+            nav.classList.add('glass-panel');
+          } else {
+            nav.classList.remove('glass-panel');
+          }
+        });
+      }
+
+      renderHero() {
+        const h = this.currentHero;
+        document.getElementById('heroBackdrop').style.backgroundImage = `url(${h.backdrop || h.poster})`;
+        document.getElementById('heroTitle').textContent = h.title;
+        document.getElementById('heroYear').textContent = h.year;
+        document.getElementById('heroGenre').textContent = h.genres[0];
+        document.getElementById('heroRating').innerHTML = `<i class="fa-solid fa-star mr-1"></i>${h.rating || 'N/A'}`;
+        document.getElementById('heroPlot').textContent = h.plot;
+        
+        const btn = document.getElementById('heroWatchlistBtn');
+        if (this.isInWatchlist(h.id)) {
+          btn.innerHTML = '<i class="fa-solid fa-check"></i> In My List';
+        } else {
+          btn.innerHTML = '<i class="fa-solid fa-plus"></i> My List';
+        }
+      }
+
+      renderRows() {
+        const container = document.getElementById('contentRows');
+        const rows = [
+          { title: 'Trending Now', items: INITIAL_DATA.trending },
+          { title: 'Popular Movies', items: INITIAL_DATA.popularMovies },
+          { title: 'Action & Adventure', items: INITIAL_DATA.action },
+          { title: 'Drama & Thriller', items: INITIAL_DATA.drama }
+        ];
+
+        container.innerHTML = rows.map((row, idx) => `
+          <div class="fade-in" style="animation-delay: ${idx * 0.1}s">
+            <h3 class="text-lg md:text-xl font-semibold mb-4 text-cf-text">${row.title}</h3>
+            <div class="row-scroll flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
+              ${row.items.map(item => this.createCard(item)).join('')}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      createCard(item) {
+        const isSaved = this.isInWatchlist(item.id);
+        return `
+          <div class="flex-none w-[160px] md:w-[200px] snap-start cursor-pointer group" onclick="app.showDetail(${item.id})">
+            <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-cf-elevated card-hover mb-2">
+              <img src="${item.poster || 'https://via.placeholder.com/200x300/1a1a1a/666?text=No+Image'}" 
+                alt="${item.title}" class="w-full h-full object-cover" loading="lazy"
+                onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/666?text=No+Image'">
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div class="w-12 h-12 rounded-full bg-cf-accent/90 flex items-center justify-center transform scale-50 group-hover:scale-100 transition-transform">
+                  <i class="fa-solid fa-play text-black ml-1"></i>
+                </div>
+              </div>
+              <button onclick="event.stopPropagation(); app.toggleWatchlist(${item.id}, '${item.title.replace(/'/g, "\\'")}', '${item.type}', '${item.poster}', ${item.year})" 
+                class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-cf-accent hover:text-black">
+                <i class="fa-${isSaved ? 'solid' : 'regular'} fa-bookmark text-xs"></i>
+              </button>
+            </div>
+            <h4 class="text-sm font-medium truncate">${item.title}</h4>
+            <div class="flex items-center gap-2 text-xs text-cf-dim mt-0.5">
+              <span>${item.year}</span>
+              <span>•</span>
+              <span class="text-amber-400"><i class="fa-solid fa-star text-[10px] mr-0.5"></i>${item.rating || '—'}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      async showDetail(id) {
+        try {
+          // Try to fetch fresh data
+          const res = await fetch(`${BASE_URL}/title/${id}/details/?append_to_response=sources,cast-crew&apiKey=${API_KEY}`);
+          const data = await res.json();
+          
+          this.currentDetail = data;
+          document.getElementById('detailTitle').textContent = data.title;
+          document.getElementById('detailPlot').textContent = data.plot_overview || 'No overview available.';
+          document.getElementById('detailYear').textContent = data.year || 'N/A';
+          document.getElementById('detailRating').innerHTML = `<span class="text-amber-400"><i class="fa-solid fa-star mr-1"></i>${data.user_rating || 'N/A'}</span> / ${data.critic_score || '—'} Metascore`;
+          document.getElementById('detailGenres').textContent = (data.genre_names || []).join(', ') || 'N/A';
+          document.getElementById('detailCast').textContent = (data.cast_crew || []).filter(c => c.type === 'Cast').slice(0, 5).map(c => c.full_name).join(', ') || 'N/A';
+          
+          const backdrop = document.getElementById('detailBackdrop');
+          backdrop.style.backgroundImage = `url(${data.backdrop || data.poster || ''})`;
+          
+          // Sources
+          const sourcesList = document.getElementById('sourcesList');
+          if (data.sources && data.sources.length > 0) {
+            sourcesList.innerHTML = data.sources.map(s => `
+              <a href="${s.web_url || '#'}" target="_blank" class="source-badge px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-white/10 transition-colors">
+                <span class="text-xs font-medium">${s.name}</span>
+                <span class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-white/10 text-cf-dim">${s.type}</span>
+              </a>
+            `).join('');
+          } else {
+            sourcesList.innerHTML = '<span class="text-cf-dim text-sm">No streaming sources available for your region.</span>';
+          }
+          
+          // Watchlist button state
+          const wlBtn = document.getElementById('detailWatchlistBtn');
+          if (this.isInWatchlist(data.id)) {
+            wlBtn.innerHTML = '<i class="fa-solid fa-check"></i> In My List';
+          } else {
+            wlBtn.innerHTML = '<i class="fa-solid fa-plus"></i> My List';
+          }
+          
+          document.getElementById('detailModal').classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        } catch (e) {
+          this.showToast('Error loading details', 'error');
+          console.error(e);
+        }
+      }
+
+      closeDetail() {
+        document.getElementById('detailModal').classList.add('hidden');
+        document.body.style.overflow = '';
+      }
+
+      async handleSearch(query) {
+        clearTimeout(this.searchTimeout);
+        if (!query || query.length < 2) {
+          document.getElementById('searchView').classList.add('hidden');
+          document.getElementById('contentRows').parentElement.classList.remove('hidden');
+          return;
+        }
+        
+        this.searchTimeout = setTimeout(async () => {
+          try {
+            const res = await fetch(`${BASE_URL}/search/?search_field=name&search_value=${encodeURIComponent(query)}&apiKey=${API_KEY}`);
+            const data = await res.json();
+            const results = data.title_results || [];
+            
+            document.getElementById('contentRows').parentElement.classList.add('hidden');
+            document.getElementById('watchlistView').classList.add('hidden');
+            const sv = document.getElementById('searchView');
+            sv.classList.remove('hidden');
+            
+            const grid = document.getElementById('searchResults');
+            if (results.length === 0) {
+              grid.innerHTML = '<div class="col-span-full text-center py-20 text-cf-muted">No results found</div>';
+              return;
+            }
+            
+            grid.innerHTML = results.map(r => `
+              <div class="cursor-pointer group" onclick="app.showDetail(${r.id})">
+                <div class="aspect-[2/3] rounded-xl overflow-hidden bg-cf-elevated mb-2 relative card-hover">
+                  <img src="https://cdn.watchmode.com/posters/0${r.id}_poster_w185.jpg" 
+                    alt="${r.name}" class="w-full h-full object-cover" loading="lazy"
+                    onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/666?text=${encodeURIComponent(r.name)}'">
+                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all"></div>
+                </div>
+                <h4 class="text-sm font-medium truncate">${r.name}</h4>
+                <div class="text-xs text-cf-dim">${r.year} • ${r.type === 'tv_series' ? 'TV' : 'Movie'}</div>
+              </div>
+            `).join('');
+          } catch (e) {
+            this.showToast('Search failed', 'error');
+          }
+        }, 400);
+      }
+
+      filterType(type) {
+        document.getElementById('searchView').classList.add('hidden');
+        document.getElementById('watchlistView').classList.add('hidden');
+        document.getElementById('contentRows').parentElement.classList.remove('hidden');
+        document.getElementById('searchInput').value = '';
+        
+        if (type === 'all') {
+          this.renderRows();
+          return;
+        }
+        
+        // Filter visible rows based on type
+        const allItems = [...INITIAL_DATA.trending, ...INITIAL_DATA.popularMovies, ...INITIAL_DATA.action, ...INITIAL_DATA.drama];
+        const filtered = allItems.filter(i => i.type === type || (type === 'tv_series' && i.type === 'tv_series') || (type === 'movie' && i.type === 'movie'));
+        
+        const container = document.getElementById('contentRows');
+        container.innerHTML = `
+          <div class="fade-in">
+            <h3 class="text-lg md:text-xl font-semibold mb-4 text-cf-text capitalize">${type === 'tv_series' ? 'TV Shows' : 'Movies'}</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              ${filtered.map(item => this.createCard(item)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      goHome() {
+        document.getElementById('searchView').classList.add('hidden');
+        document.getElementById('watchlistView').classList.add('hidden');
+        document.getElementById('contentRows').parentElement.classList.remove('hidden');
+        document.getElementById('searchInput').value = '';
+        document.getElementById('mainContent').scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      toggleWatchlist(id, title, type, poster, year) {
+        const index = this.watchlist.findIndex(w => w.id === id);
+        if (index > -1) {
+          this.watchlist.splice(index, 1);
+          this.showToast('Removed from watchlist');
+        } else {
+          this.watchlist.push({ id, title, type, poster, year, added: Date.now() });
+          this.showToast('Added to watchlist');
+        }
+        localStorage.setItem('cineflow_watchlist', JSON.stringify(this.watchlist));
+        this.renderRows(); // refresh icons
+      }
+
+      toggleHeroWatchlist() {
+        const h = this.currentHero;
+        this.toggleWatchlist(h.id, h.title, h.type, h.poster, h.year);
+        this.renderHero();
+      }
+
+      toggleDetailWatchlist() {
+        if (!this.currentDetail) return;
+        const d = this.currentDetail;
+        this.toggleWatchlist(d.id, d.title, d.type, d.poster, d.year);
+        this.showDetail(d.id); // refresh
+      }
+
+      isInWatchlist(id) {
+        return this.watchlist.some(w => w.id === id);
+      }
+
+      showWatchlist() {
+        document.getElementById('searchView').classList.add('hidden');
+        document.getElementById('contentRows').parentElement.classList.add('hidden');
+        document.getElementById('watchlistView').classList.remove('hidden');
+        
+        const grid = document.getElementById('watchlistGrid');
+        const empty = document.getElementById('emptyWatchlist');
+        
+        if (this.watchlist.length === 0) {
+          grid.innerHTML = '';
+          empty.classList.remove('hidden');
+          return;
+        }
+        
+        empty.classList.add('hidden');
+        grid.innerHTML = this.watchlist.map(item => `
+          <div class="cursor-pointer group" onclick="app.showDetail(${item.id})">
+            <div class="aspect-[2/3] rounded-xl overflow-hidden bg-cf-elevated mb-2 relative card-hover">
+              <img src="${item.poster || 'https://via.placeholder.com/200x300/1a1a1a/666?text=No+Image'}" 
+                alt="${item.title}" class="w-full h-full object-cover" loading="lazy"
+                onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/666?text=No+Image'">
+              <button onclick="event.stopPropagation(); app.removeFromWatchlist(${item.id})" 
+                class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:bg-red-500 transition-colors">
+                <i class="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+            <h4 class="text-sm font-medium truncate">${item.title}</h4>
+            <div class="text-xs text-cf-dim">${item.year}</div>
+          </div>
+        `).join('');
+      }
+
+      removeFromWatchlist(id) {
+        this.watchlist = this.watchlist.filter(w => w.id !== id);
+        localStorage.setItem('cineflow_watchlist', JSON.stringify(this.watchlist));
+        this.showWatchlist();
+        this.showToast('Removed from watchlist');
+      }
+
+      clearWatchlist() {
+        this.watchlist = [];
+        localStorage.removeItem('cineflow_watchlist');
+        this.showWatchlist();
+        this.showToast('Watchlist cleared');
+      }
+
+      toggleSettings() {
+        const panel = document.getElementById('settingsPanel');
+        panel.classList.toggle('hidden');
+      }
+
+      loadSettings() {
+        document.getElementById('regionSelect').value = this.settings.region || 'US';
+        ['autoplay', 'hd', 'compact'].forEach(key => {
+          const btn = document.getElementById(`setting-${key}`);
+          if (btn && this.settings[key]) {
+            btn.classList.add('bg-cf-accent');
+            btn.classList.remove('bg-cf-border');
+            btn.querySelector('div').style.right = '4px';
+            btn.querySelector('div').style.left = 'auto';
+          }
+        });
+      }
+
+      toggleSetting(btn, key) {
+        this.settings[key] = !this.settings[key];
+        localStorage.setItem('cineflow_settings', JSON.stringify(this.settings));
+        
+        const dot = btn.querySelector('div');
+        if (this.settings[key]) {
+          btn.classList.add('bg-cf-accent');
+          btn.classList.remove('bg-cf-border');
+          dot.style.right = '4px';
+          dot.style.left = 'auto';
+        } else {
+          btn.classList.remove('bg-cf-accent');
+          btn.classList.add('bg-cf-border');
+          dot.style.left = '4px';
+          dot.style.right = 'auto';
+        }
+      }
+
+      changeRegion(region) {
+        this.settings.region = region;
+        localStorage.setItem('cineflow_settings', JSON.stringify(this.settings));
+        this.showToast(`Region changed to ${region}`);
+      }
+
+      async checkQuota() {
+        try {
+          const res = await fetch(`${BASE_URL}/status/?apiKey=${API_KEY}`);
+          const data = await res.json();
+          document.getElementById('quotaDisplay').textContent = `${data.quotaUsed} / ${data.quota}`;
+          const pct = (data.quotaUsed / data.quota) * 100;
+          document.getElementById('quotaBar').style.width = `${pct}%`;
+        } catch (e) {
+          document.getElementById('quotaDisplay').textContent = 'Error';
+        }
+      }
+
+      playHero() {
+        this.showToast('Starting playback...');
+      }
+
+      showHeroDetails() {
+        this.showDetail(this.currentHero.id);
+      }
+
+      showToast(msg, type = 'success') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        const text = document.getElementById('toastMessage');
+        
+        text.textContent = msg;
+        icon.className = type === 'error' ? 'fa-solid fa-circle-exclamation text-red-400' : 'fa-solid fa-check-circle text-cf-accent';
+        
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 3000);
+      }
+    }
+
+    const app = new CineFlow();
+  </script>
+</kimi-widget>
